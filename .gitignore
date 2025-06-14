@@ -1,0 +1,5 @@
+# Môi trường
+.env
+
+# Firebase Service Account Key
+/config/firebase-service-account.json
