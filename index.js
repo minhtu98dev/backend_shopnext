@@ -1,15 +1,13 @@
+import "dotenv/config";
 import express from "express";
 import mongoose from "mongoose";
-import dotenv from "dotenv";
 import cors from "cors";
 
 import authRoutes from "./src/routes/authRoutes.js";
 import productRoutes from "./src/routes/productRoutes.js";
 import orderRoutes from "./src/routes/orderRoutes.js";
-
+import uploadRoutes from "./src/routes/uploadRoutes.js";
 import { notFound, errorHandler } from "./src/middlewares/errorMiddleware.js";
-// Load env vars
-dotenv.config();
 
 const app = express();
 
@@ -24,6 +22,7 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/upload", uploadRoutes);
 
 // Error handling middlewares
 app.use(notFound);

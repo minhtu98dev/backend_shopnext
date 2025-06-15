@@ -20,6 +20,21 @@ const createOrder = asyncHandler(async (req, res) => {
     throw new Error("No order items");
   }
 
+  //Inventory Management
+  for (const item of items) {
+    const product = await Product.findById(item.product);
+    if (!product) {
+      res.status(404);
+      throw new Error(`Không tìm thấy sản phẩm với ID: ${item.product}`);
+    }
+    if (product.countInStock < item.quantity) {
+      res.status(400);
+      throw new Error(
+        `Sản phẩm "${product.name}" không đủ hàng. Trong kho chỉ còn ${product.countInStock} sản phẩm.`
+      );
+    }
+  }
+
   const orderData = {
     items,
     shippingAddress,
@@ -46,6 +61,7 @@ const createOrder = asyncHandler(async (req, res) => {
   const createdOrder = await order.save();
   res.status(201).json(createdOrder);
 });
+
 // Get order by ID
 const getOrderById = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id).populate(
@@ -78,6 +94,13 @@ const updateOrderToPaid = asyncHandler(async (req, res) => {
       email_address: req.body.email_address,
     };
 
+    for (const item of order.items) {
+      const product = await Product.findById(item.product);
+      if (product) {
+        product.countInStock -= item.quantity;
+        await product.save();
+      }
+    }
     const updatedOrder = await order.save();
     res.json(updatedOrder);
   } else {

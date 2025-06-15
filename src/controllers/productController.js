@@ -3,8 +3,50 @@ import Product from "../models/ProductModel.js";
 
 // Get all products
 const getProducts = asyncHandler(async (req, res) => {
-  const products = await Product.find({});
-  res.json(products);
+  const pageSize = Number(req.query.limit) || 12; // Số lượng sản phẩm mỗi trang
+  const page = Number(req.query.page) || 1; // Trang hiện tại
+
+  // Điều kiện cho Tìm kiếm (Search)
+  const keyword = req.query.keyword
+    ? {
+        name: {
+          $regex: req.query.keyword,
+          $options: "i", // 'i' để không phân biệt chữ hoa/thường
+        },
+      }
+    : {};
+
+  // Điều kiện cho Lọc (Filter) - ví dụ lọc theo category
+  const categoryFilter = req.query.category
+    ? { category: req.query.category }
+    : {};
+
+  // Điều kiện cho Sắp xếp (Sort)
+  const sortOrder = {};
+  if (req.query.sortBy === "price") {
+    sortOrder.price = req.query.order === "desc" ? -1 : 1;
+  } else if (req.query.sortBy === "name") {
+    sortOrder.name = req.query.order === "desc" ? -1 : 1;
+  } else {
+    sortOrder.createdAt = -1; // Mặc định sắp xếp theo sản phẩm mới nhất
+  }
+
+  // Đếm tổng số sản phẩm khớp với điều kiện tìm kiếm và lọc
+  const count = await Product.countDocuments({ ...keyword, ...categoryFilter });
+
+  // Lấy sản phẩm với đầy đủ các điều kiện và phân trang
+  const products = await Product.find({ ...keyword, ...categoryFilter })
+    .sort(sortOrder)
+    .limit(pageSize)
+    .skip(pageSize * (page - 1));
+
+  // Trả về dữ liệu
+  res.json({
+    products,
+    page,
+    pages: Math.ceil(count / pageSize),
+    total: count,
+  });
 });
 
 // Get product by ID
@@ -57,8 +99,10 @@ const createProductReview = asyncHandler(async (req, res) => {
 // Admin: Delete product
 const deleteProduct = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id);
+
   if (product) {
-    await product.remove();
+    // Thay thế .remove() bằng .deleteOne()
+    await product.deleteOne();
     res.json({ message: "Product removed" });
   } else {
     res.status(404);
@@ -68,16 +112,20 @@ const deleteProduct = asyncHandler(async (req, res) => {
 
 // Admin: Create product
 const createProduct = asyncHandler(async (req, res) => {
+  const { name, price, description, image, brand, category, countInStock } =
+    req.body;
+
   const product = new Product({
-    name: "Sample name",
-    price: 0,
-    user: req.user._id, // Gán người tạo là admin hiện tại
-    image: "/images/sample.jpg",
-    brand: "Sample brand",
-    category: "Sample category",
-    countInStock: 0,
+    name,
+    price,
+    user: req.user._id,
+    image, // <-- THÊM LẠI TRƯỜDNG "image" VÀO ĐÂY
+    brand,
+    category,
+    countInStock,
+    description,
     numReviews: 0,
-    description: "Sample description",
+    rating: 0,
   });
 
   const createdProduct = await product.save();
