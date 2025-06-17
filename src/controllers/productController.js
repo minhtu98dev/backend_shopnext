@@ -3,20 +3,23 @@ import Product from "../models/ProductModel.js";
 
 // Get all products
 const getProducts = asyncHandler(async (req, res) => {
-  const pageSize = Number(req.query.limit) || 12; // Số lượng sản phẩm mỗi trang
-  const page = Number(req.query.page) || 1; // Trang hiện tại
+  // --- 1. LẤY CÁC THAM SỐ TỪ QUERY STRING ---
+  const pageSize = Number(req.query.limit) || 10;
+  const page = Number(req.query.pageNumber) || 1;
+
+  // --- 2. XÂY DỰNG CÁC ĐIỀU KIỆN TRUY VẤN ---
 
   // Điều kiện cho Tìm kiếm (Search)
-  const keyword = req.query.keyword
+  const keywordFilter = req.query.keyword
     ? {
         name: {
           $regex: req.query.keyword,
-          $options: "i", // 'i' để không phân biệt chữ hoa/thường
+          $options: "i", // không phân biệt chữ hoa/thường
         },
       }
     : {};
 
-  // Điều kiện cho Lọc (Filter) - ví dụ lọc theo category
+  // Điều kiện cho Lọc (Filter)
   const categoryFilter = req.query.category
     ? { category: req.query.category }
     : {};
@@ -28,24 +31,36 @@ const getProducts = asyncHandler(async (req, res) => {
   } else if (req.query.sortBy === "name") {
     sortOrder.name = req.query.order === "desc" ? -1 : 1;
   } else {
-    sortOrder.createdAt = -1; // Mặc định sắp xếp theo sản phẩm mới nhất
+    sortOrder.createdAt = -1; // Mặc định: sản phẩm mới nhất
   }
 
-  // Đếm tổng số sản phẩm khớp với điều kiện tìm kiếm và lọc
-  const count = await Product.countDocuments({ ...keyword, ...categoryFilter });
+  // Gộp các điều kiện lọc và tìm kiếm lại
+  const filterConditions = { ...keywordFilter, ...categoryFilter };
 
-  // Lấy sản phẩm với đầy đủ các điều kiện và phân trang
-  const products = await Product.find({ ...keyword, ...categoryFilter })
-    .sort(sortOrder)
-    .limit(pageSize)
-    .skip(pageSize * (page - 1));
+  // --- 3. THỰC THI CÁC TRUY VẤN SONG SONG ĐỂ TỐI ƯU ---
 
-  // Trả về dữ liệu
+  const [count, products, availableCategories] = await Promise.all([
+    // Truy vấn 1: Đếm tổng số sản phẩm khớp điều kiện
+    Product.countDocuments(filterConditions),
+
+    // Truy vấn 2: Tìm sản phẩm khớp điều kiện, áp dụng sắp xếp và phân trang
+    Product.find(filterConditions)
+      .sort(sortOrder)
+      .limit(pageSize)
+      .skip(pageSize * (page - 1)),
+
+    // Truy vấn 3: Lấy danh sách tất cả các danh mục duy nhất có trong DB
+    Product.distinct("category", {}), // filter rỗng để lấy tất cả
+  ]);
+
+  // --- 4. TRẢ VỀ KẾT QUẢ HOÀN CHỈNH ---
+
   res.json({
     products,
     page,
     pages: Math.ceil(count / pageSize),
     total: count,
+    availableCategories, // <-- Dữ liệu mới được thêm vào
   });
 });
 
