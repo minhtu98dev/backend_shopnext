@@ -15,7 +15,11 @@ const productSchema = new mongoose.Schema(
     description: { type: String, required: true },
     price: { type: Number, required: true, min: 0 },
     countInStock: { type: Number, required: true, min: 0 },
-    image: { type: String, required: true },
+    image: {
+      type: String,
+      required: true,
+    },
+    images: [{ type: String }],
     category: { type: String, required: true },
     brand: { type: String, required: true },
     reviews: [reviewSchema],

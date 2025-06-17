@@ -101,7 +101,6 @@ const deleteProduct = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id);
 
   if (product) {
-    // Thay thế .remove() bằng .deleteOne()
     await product.deleteOne();
     res.json({ message: "Product removed" });
   } else {
@@ -112,14 +111,23 @@ const deleteProduct = asyncHandler(async (req, res) => {
 
 // Admin: Create product
 const createProduct = asyncHandler(async (req, res) => {
-  const { name, price, description, image, brand, category, countInStock } =
-    req.body;
+  const {
+    name,
+    price,
+    description,
+    image,
+    images,
+    brand,
+    category,
+    countInStock,
+  } = req.body;
 
   const product = new Product({
     name,
     price,
     user: req.user._id,
-    image, // <-- THÊM LẠI TRƯỜDNG "image" VÀO ĐÂY
+    image,
+    images,
     brand,
     category,
     countInStock,
@@ -134,8 +142,16 @@ const createProduct = asyncHandler(async (req, res) => {
 
 // Admin: Update product
 const updateProduct = asyncHandler(async (req, res) => {
-  const { name, price, description, image, brand, category, countInStock } =
-    req.body;
+  const {
+    name,
+    price,
+    description,
+    image,
+    images,
+    brand,
+    category,
+    countInStock,
+  } = req.body;
 
   const product = await Product.findById(req.params.id);
 
@@ -144,6 +160,7 @@ const updateProduct = asyncHandler(async (req, res) => {
     product.price = price;
     product.description = description;
     product.image = image;
+    product.images = images;
     product.brand = brand;
     product.category = category;
     product.countInStock = countInStock;
