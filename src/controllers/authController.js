@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import User from "../models/UserModel.js";Add commentMore actions
+import User from "../models/UserModel.js";
 import asyncHandler from "express-async-handler";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
@@ -13,7 +13,8 @@ import sendEmail from "../utils/sendEmail.js";
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: "30d",
-@@ -18,8 +15,8 @@
+  });
+};
 
 // --- CÁC HÀM CONTROLLER ---
 
@@ -22,22 +23,37 @@ const generateToken = (id) => {
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
 
-@@ -44,11 +41,14 @@
+  if (!name || !email || !password) {
+    res.status(400);
+    throw new Error("Vui lòng điền đầy đủ các trường");
+  }
+
+  const userExists = await User.findOne({ email });
+  if (userExists) {
+    res.status(400);
+    throw new Error("Người dùng đã tồn tại");
+  }
+
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(password, salt);
+
+  const user = await User.create({
+    name,
+    email,
+    password: hashedPassword,
   });
 
   if (user) {
-
     res.status(201).json({
       _id: user._id,
       name: user.name,
       email: user.email,
       isAdmin: user.isAdmin,
-
-
       token: generateToken(user._id),
     });
   } else {
-@@ -57,59 +57,50 @@
+    res.status(400);
+    throw new Error("Dữ liệu người dùng không hợp lệ");
   }
 });
 
@@ -76,39 +92,30 @@ const loginWithFirebase = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error("No ID token provided");
   }
-
   const decodedToken = await admin.auth().verifyIdToken(idToken);
   const { uid, email, name } = decodedToken;
 
   let user = await User.findOne({ firebaseUid: uid });
-
 
   if (!user) {
     // Mã hóa uid làm mật khẩu placeholder
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(uid, salt);
 
-
-
-
-
-
-
-
     user = await User.create({
       firebaseUid: uid, // Giả sử bạn có trường này trong model
       name: name || "Firebase User",
       email,
       password: hashedPassword,
-
     });
   }
-
 
   res.json({
     _id: user._id,
     name: user.name,
-@@ -119,32 +110,26 @@
+    email: user.email,
+    isAdmin: user.isAdmin,
+    token: generateToken(user._id),
   });
 });
 
@@ -119,9 +126,6 @@ const forgotPassword = asyncHandler(async (req, res) => {
   if (!user) {
     res.status(404);
     throw new Error("Không tìm thấy người dùng với email này");
-
-
-
   }
 
   const resetToken = crypto.randomBytes(32).toString("hex");
@@ -141,14 +145,16 @@ const forgotPassword = asyncHandler(async (req, res) => {
   const message = `Bạn nhận được email này vì bạn (hoặc ai đó) đã yêu cầu đặt lại mật khẩu. Vui lòng nhấn vào link sau để đặt lại mật khẩu:\n\n${resetURL}\n\nNếu bạn không yêu cầu, vui lòng bỏ qua email này! Link chỉ có hiệu lực trong 10 phút.`;
 
   try {
-
-
-
-
     await sendEmail({
       email: user.email,
       subject: "Yêu cầu đặt lại mật khẩu (Có hiệu lực trong 10 phút)",
-@@ -158,99 +143,35 @@
+      message,
+    });
+    res.status(200).json({
+      status: "success",
+      message: "Token đặt lại mật khẩu đã được gửi đến email!",
+    });
+  } catch (err) {
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
     await user.save({ validateBeforeSave: false });
@@ -238,7 +244,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
     throw new Error("Không tìm thấy người dùng");
   }
 });
-
+///test
 export {
   registerUser,
   loginUser,
