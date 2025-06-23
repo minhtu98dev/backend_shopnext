@@ -1,72 +1,48 @@
 import jwt from "jsonwebtoken";
-import User from "../models/userModel.js";
+import User from "../models/UserModel.js";Add commentMore actions
 import asyncHandler from "express-async-handler";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import admin from "../../firebaseAdmin.js"; // Đảm bảo đường dẫn đến file config firebase admin của bạn là đúng
+import admin from "../../firebaseAdmin.js";
 import sendEmail from "../utils/sendEmail.js";
 
-/**
- * @desc    Tạo một token JWT cho user ID được cung cấp
- * @param   {string} id - ID của người dùng
- * @returns {string} Token JWT
- */
+// --- HÀM TIỆN ÍCH (HELPER FUNCTION) ---
+
+// Tạo token JWT
+
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: "30d",
-  });
-};
+@@ -18,8 +15,8 @@
 
-/**
- * @desc    Đăng ký người dùng mới
- * @route   POST /api/auth/register
- * @access  Public
- */
+// --- CÁC HÀM CONTROLLER ---
+
+//Register a new user
+//POST /api/auth/register
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
 
-  if (!name || !email || !password) {
-    res.status(400);
-    throw new Error("Vui lòng điền đầy đủ các trường");
-  }
-
-  const userExists = await User.findOne({ email });
-  if (userExists) {
-    res.status(400);
-    throw new Error("Người dùng đã tồn tại");
-  }
-
-  const salt = await bcrypt.genSalt(10);
-  const hashedPassword = await bcrypt.hash(password, salt);
-
-  const user = await User.create({
-    name,
-    email,
-    password: hashedPassword,
+@@ -44,11 +41,14 @@
   });
 
   if (user) {
-    // Trả về cấu trúc lồng nhau để frontend dễ xử lý
+
     res.status(201).json({
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        isAdmin: user.isAdmin,
-      },
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      isAdmin: user.isAdmin,
+
+
       token: generateToken(user._id),
     });
   } else {
-    res.status(400);
-    throw new Error("Dữ liệu người dùng không hợp lệ");
+@@ -57,59 +57,50 @@
   }
 });
 
-/**
- * @desc    Xác thực người dùng & lấy token
- * @route   POST /api/auth/login
- * @access  Public
- */
+//Auth user & get token
+//POST /api/auth/login
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
@@ -78,7 +54,6 @@ const loginUser = asyncHandler(async (req, res) => {
   const user = await User.findOne({ email }).select("+password");
 
   if (user && (await bcrypt.compare(password, user.password))) {
-    // Trả về cấu trúc phẳng, khớp với logic xử lý ở frontend
     res.json({
       _id: user._id,
       name: user.name,
@@ -92,11 +67,8 @@ const loginUser = asyncHandler(async (req, res) => {
   }
 });
 
-/**
- * @desc    Đăng nhập/Đăng ký với Firebase
- * @route   POST /api/auth/firebase-login
- * @access  Public
- */
+//Login/Register with Firebase
+//POST /api/auth/firebase-login
 const loginWithFirebase = asyncHandler(async (req, res) => {
   const { idToken } = req.body;
 
@@ -106,81 +78,90 @@ const loginWithFirebase = asyncHandler(async (req, res) => {
   }
 
   const decodedToken = await admin.auth().verifyIdToken(idToken);
-  const { uid, email, name, picture } = decodedToken;
+  const { uid, email, name } = decodedToken;
 
-  // SỬA LỖI E11000: Tìm user bằng EMAIL
-  let user = await User.findOne({ email: email });
+  let user = await User.findOne({ firebaseUid: uid });
 
-  if (user) {
-    // Nếu user đã tồn tại -> chỉ cần đăng nhập
-    user.firebaseUid = uid; // Cập nhật để liên kết tài khoản
-    await user.save();
-  } else {
-    // Nếu user chưa tồn tại -> Tạo mới
-    const randomPassword = crypto.randomBytes(20).toString("hex");
+
+  if (!user) {
+    // Mã hóa uid làm mật khẩu placeholder
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(uid, salt);
+
+
+
+
+
+
+
+
     user = await User.create({
-      firebaseUid: uid,
+      firebaseUid: uid, // Giả sử bạn có trường này trong model
       name: name || "Firebase User",
       email,
-      avatar: picture,
-      password: randomPassword,
+      password: hashedPassword,
+
     });
   }
+
 
   res.json({
     _id: user._id,
     name: user.name,
-    email: user.email,
-    isAdmin: user.isAdmin,
-    token: generateToken(user._id),
+@@ -119,32 +110,26 @@
   });
 });
 
-/**
- * @desc    Yêu cầu quên mật khẩu
- * @route   POST /api/auth/forgot-password
- * @access  Public
- */
+//Forgot password
+//POST /api/auth/forgot-password
 const forgotPassword = asyncHandler(async (req, res) => {
   const user = await User.findOne({ email: req.body.email });
   if (!user) {
-    return res.status(200).json({
-      status: "success",
-      message: "Nếu email tồn tại, link reset sẽ được gửi đi.",
-    });
+    res.status(404);
+    throw new Error("Không tìm thấy người dùng với email này");
+
+
+
   }
 
-  const resetToken = user.createPasswordResetToken(); // Giả sử bạn có method này trong model
+  const resetToken = crypto.randomBytes(32).toString("hex");
+
+  user.passwordResetToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+  user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 phút
+
   await user.save({ validateBeforeSave: false });
 
+  // (Lưu ý: Thay đổi URL cho phù hợp với trang frontend của bạn)
+  const resetURL = `${req.protocol}://${req.get(
+    "host"
+  )}/reset-password/${resetToken}`;
+  const message = `Bạn nhận được email này vì bạn (hoặc ai đó) đã yêu cầu đặt lại mật khẩu. Vui lòng nhấn vào link sau để đặt lại mật khẩu:\n\n${resetURL}\n\nNếu bạn không yêu cầu, vui lòng bỏ qua email này! Link chỉ có hiệu lực trong 10 phút.`;
+
   try {
-    // SỬA LẠI: Dùng biến môi trường cho URL của frontend
-    const resetURL = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
-    const message = `Bạn nhận được email này vì bạn (hoặc ai đó) đã yêu cầu đặt lại mật khẩu. Vui lòng nhấn vào link sau:\n\n${resetURL}\n\nLink chỉ có hiệu lực trong 10 phút.`;
+
+
+
 
     await sendEmail({
       email: user.email,
-      subject: "Yêu cầu đặt lại mật khẩu (Hiệu lực trong 10 phút)",
-      message,
-    });
-    res.status(200).json({
-      status: "success",
-      message: "Token đặt lại mật khẩu đã được gửi đến email!",
-    });
-  } catch (err) {
+      subject: "Yêu cầu đặt lại mật khẩu (Có hiệu lực trong 10 phút)",
+@@ -158,99 +143,35 @@
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
     await user.save({ validateBeforeSave: false });
+
     console.error(err);
-    throw new Error("Có lỗi xảy ra khi gửi email. Vui lòng thử lại sau.");
+    throw new Error(
+      "Có lỗi xảy ra trong quá trình gửi email. Vui lòng thử lại sau."
+    );
   }
 });
 
-/**
- * @desc    Đặt lại mật khẩu
- * @route   PUT /api/auth/reset-password/:token
- * @access  Public
- */
+//Reset password
+//PUT /api/auth/reset-password/:token
 const resetPassword = asyncHandler(async (req, res) => {
   const hashedToken = crypto
     .createHash("sha256")
@@ -197,10 +178,14 @@ const resetPassword = asyncHandler(async (req, res) => {
     throw new Error("Token không hợp lệ hoặc đã hết hạn");
   }
 
+  // Mã hóa mật khẩu mới trước khi lưu
   const salt = await bcrypt.genSalt(10);
   user.password = await bcrypt.hash(req.body.password, salt);
+
   user.passwordResetToken = undefined;
   user.passwordResetExpires = undefined;
+  user.passwordChangedAt = Date.now();
+
   await user.save();
 
   res.status(200).json({
@@ -209,11 +194,8 @@ const resetPassword = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * @desc    Lấy thông tin profile người dùng
- * @route   GET /api/auth/profile
- * @access  Private (yêu cầu `protect` middleware)
- */
+//Get user profile
+//GET /api/auth/profile
 const getUserProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
   if (user) {
@@ -229,11 +211,8 @@ const getUserProfile = asyncHandler(async (req, res) => {
   }
 });
 
-/**
- * @desc    Cập nhật thông tin profile người dùng
- * @route   PUT /api/auth/profile
- * @access  Private (yêu cầu `protect` middleware)
- */
+//Update user profile
+//PUT /api/auth/profile
 const updateUserProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
 
