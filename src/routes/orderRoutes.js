@@ -15,7 +15,7 @@ import { protect, admin, optionalAuth } from "../middlewares/authMiddleware.js";
 router.route("/").post(optionalAuth, createOrder);
 
 // Lấy danh sách đơn hàng của user đang đăng nhập
-router.route("/myorders", protect, getMyOrders);
+router.route("/myorders").get(protect, getMyOrders);
 
 // Lấy chi tiết một đơn hàng bằng ID
 router.route("/:id").get(protect, getOrderById);
