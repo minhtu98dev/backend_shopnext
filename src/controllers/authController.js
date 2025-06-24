@@ -92,24 +92,42 @@ const loginWithFirebase = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error("No ID token provided");
   }
+
   const decodedToken = await admin.auth().verifyIdToken(idToken);
   const { uid, email, name } = decodedToken;
 
+  // 1. Tìm user bằng Firebase UID trước
   let user = await User.findOne({ firebaseUid: uid });
 
+  // 2. Nếu không có...
   if (!user) {
-    // Mã hóa uid làm mật khẩu placeholder
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(uid, salt);
+    // ...hãy thử tìm bằng email
+    user = await User.findOne({ email });
 
-    user = await User.create({
-      firebaseUid: uid, // Giả sử bạn có trường này trong model
-      name: name || "Firebase User",
-      email,
-      password: hashedPassword,
-    });
+    if (user) {
+      // Nếu tìm thấy user có cùng email, hãy LIÊN KẾT tài khoản
+      // bằng cách thêm firebaseUid vào document của họ
+      user.firebaseUid = uid;
+      await user.save();
+      console.log(`Linked Firebase UID ${uid} to existing user ${email}`);
+    } else {
+      // Nếu không tìm thấy bằng cả UID và email, lúc này mới TẠO MỚI
+      const salt = await bcrypt.genSalt(10);
+      // Dùng một chuỗi ngẫu nhiên an toàn làm mật khẩu placeholder
+      const randomPassword = crypto.randomBytes(16).toString("hex");
+      const hashedPassword = await bcrypt.hash(randomPassword, salt);
+
+      user = await User.create({
+        firebaseUid: uid, // Giả sử bạn có trường này trong model
+        name: name || email.split("@")[0], // Lấy tên từ Firebase hoặc từ email
+        email,
+        password: hashedPassword,
+      });
+      console.log(`Created new user ${email} with Firebase UID ${uid}`);
+    }
   }
 
+  // 3. Trả về thông tin và token
   res.json({
     _id: user._id,
     name: user.name,
