@@ -157,9 +157,7 @@ const forgotPassword = asyncHandler(async (req, res) => {
   await user.save({ validateBeforeSave: false });
 
   // (Lưu ý: Thay đổi URL cho phù hợp với trang frontend của bạn)
-  const resetURL = `${req.protocol}://${req.get(
-    "host"
-  )}/reset-password/${resetToken}`;
+  const resetURL = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
   const message = `Bạn nhận được email này vì bạn (hoặc ai đó) đã yêu cầu đặt lại mật khẩu. Vui lòng nhấn vào link sau để đặt lại mật khẩu:\n\n${resetURL}\n\nNếu bạn không yêu cầu, vui lòng bỏ qua email này! Link chỉ có hiệu lực trong 10 phút.`;
 
   try {
@@ -217,7 +215,11 @@ const resetPassword = asyncHandler(async (req, res) => {
     message: "Mật khẩu đã được đặt lại thành công.",
   });
 });
-
+// Thêm hàm này vào src/controllers/authController.js
+const getAllUsers = asyncHandler(async (req, res) => {
+  const users = await User.find({});
+  res.json(users);
+});
 //Get user profile
 //GET /api/auth/profile
 const getUserProfile = asyncHandler(async (req, res) => {
@@ -267,6 +269,7 @@ export {
   registerUser,
   loginUser,
   loginWithFirebase,
+  getAllUsers,
   getUserProfile,
   updateUserProfile,
   forgotPassword,

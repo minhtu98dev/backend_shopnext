@@ -3,6 +3,7 @@ const router = express.Router();
 
 import {
   createOrder,
+  getAllOrders,
   getOrderById,
   updateOrderToPaid,
   getMyOrders,
@@ -11,19 +12,23 @@ import {
 
 import { protect, admin, optionalAuth } from "../middlewares/authMiddleware.js";
 
-// Tạo đơn hàng mới (cho cả user và guest)
-router.route("/").post(optionalAuth, createOrder);
+// @route   POST /api/orders (Tạo đơn hàng)
+// @route   GET /api/orders (Lấy tất cả đơn hàng - Admin)
+router
+  .route("/")
+  .post(optionalAuth, createOrder)
+  .get(protect, admin, getAllOrders);
 
-// Lấy danh sách đơn hàng của user đang đăng nhập
-router.route("/myorders").get(protect, getMyOrders);
+// @route   GET /api/orders/myorders (Lấy đơn hàng của user)
+router.get("/myorders", protect, getMyOrders);
 
-// Lấy chi tiết một đơn hàng bằng ID
-router.route("/:id").get(protect, getOrderById);
+// @route   GET /api/orders/:id (Lấy chi tiết đơn hàng)
+router.get("/:id", protect, getOrderById);
 
-// Cập nhật trạng thái đã thanh toán
-router.route("/:id/pay").put(protect, updateOrderToPaid);
+// @route   PUT /api/orders/:id/pay (Cập nhật đã thanh toán)
+router.put("/:id/pay", protect, updateOrderToPaid);
 
-// Cập nhật trạng thái đã giao hàng (chỉ Admin)
-router.route("/:id/deliver").put(protect, admin, updateOrderToDelivered);
+// @route   PUT /api/orders/:id/deliver (Cập nhật đã giao hàng - Admin)
+router.put("/:id/deliver", protect, admin, updateOrderToDelivered);
 
 export default router;

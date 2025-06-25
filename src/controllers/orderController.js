@@ -62,7 +62,11 @@ const createOrder = asyncHandler(async (req, res) => {
   res.status(201).json(createdOrder);
 });
 
-// Get order by ID
+const getAllOrders = asyncHandler(async (req, res) => {
+  const orders = await Order.find({}).populate("user", "id name");
+  res.json(orders);
+});
+// Get order by ID - Phiên bản đã sửa lỗi
 const getOrderById = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id).populate(
     "user",
@@ -70,11 +74,18 @@ const getOrderById = asyncHandler(async (req, res) => {
   );
 
   if (order) {
-    if (order.user._id.toString() !== req.user._id.toString()) {
+    // Logic kiểm tra quyền được viết lại cho an toàn
+    const isOwner =
+      order.user && order.user._id.toString() === req.user._id.toString();
+    const isAdmin = req.user.isAdmin;
+
+    // Cho phép truy cập nếu là Admin HOẶC là chủ của đơn hàng
+    if (isOwner || isAdmin) {
+      res.json(order);
+    } else {
       res.status(403);
       throw new Error("You are not authorized to view this order");
     }
-    res.json(order);
   } else {
     res.status(404);
     throw new Error("Order not found");
@@ -133,6 +144,7 @@ const updateOrderToDelivered = asyncHandler(async (req, res) => {
 
 export {
   createOrder,
+  getAllOrders,
   getOrderById,
   updateOrderToPaid,
   getMyOrders,
