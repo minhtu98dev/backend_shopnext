@@ -8,6 +8,7 @@ import {
   updateOrderToPaid,
   getMyOrders,
   updateOrderToDelivered,
+  deleteOrder,
 } from "../controllers/orderController.js";
 
 import { protect, admin, optionalAuth } from "../middlewares/authMiddleware.js";
@@ -23,7 +24,11 @@ router
 router.get("/myorders", protect, getMyOrders);
 
 // @route   GET /api/orders/:id (Lấy chi tiết đơn hàng)
-router.get("/:id", protect, getOrderById);
+// @route   DELETE /api/orders/:id (Xóa đơn hàng - Admin)
+router
+  .route("/:id")
+  .get(protect, getOrderById)
+  .delete(protect, admin, deleteOrder);
 
 // @route   PUT /api/orders/:id/pay (Cập nhật đã thanh toán)
 router.put("/:id/pay", protect, updateOrderToPaid);

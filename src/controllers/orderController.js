@@ -66,6 +66,7 @@ const getAllOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find({}).populate("user", "id name");
   res.json(orders);
 });
+
 // Get order by ID - Phiên bản đã sửa lỗi
 const getOrderById = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id).populate(
@@ -142,6 +143,21 @@ const updateOrderToDelivered = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Delete an order
+// @route   DELETE /api/orders/:id
+// @access  Private/Admin
+const deleteOrder = asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id);
+
+  if (order) {
+    await order.deleteOne();
+    res.json({ message: "Đơn hàng đã được xóa" });
+  } else {
+    res.status(404);
+    throw new Error("Không tìm thấy đơn hàng");
+  }
+});
+
 export {
   createOrder,
   getAllOrders,
@@ -149,4 +165,5 @@ export {
   updateOrderToPaid,
   getMyOrders,
   updateOrderToDelivered,
+  deleteOrder,
 };
