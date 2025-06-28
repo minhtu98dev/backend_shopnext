@@ -142,7 +142,18 @@ const updateOrderToDelivered = asyncHandler(async (req, res) => {
     throw new Error("Order not found");
   }
 });
-
+// @desc    Get all orders by a specific user ID (Admin only)
+// @route   GET /api/orders/user/:userId
+// @access  Private/Admin
+const getOrdersByUserId = asyncHandler(async (req, res) => {
+  const orders = await Order.find({ user: req.params.userId });
+  if (orders) {
+    res.json(orders);
+  } else {
+    res.status(404);
+    throw new Error("No orders found for this user");
+  }
+});
 // @desc    Delete an order
 // @route   DELETE /api/orders/:id
 // @access  Private/Admin
@@ -165,5 +176,6 @@ export {
   updateOrderToPaid,
   getMyOrders,
   updateOrderToDelivered,
+  getOrdersByUserId,
   deleteOrder,
 };

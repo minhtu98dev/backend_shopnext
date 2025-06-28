@@ -7,6 +7,7 @@ import {
   getOrderById,
   updateOrderToPaid,
   getMyOrders,
+  getOrdersByUserId,
   updateOrderToDelivered,
   deleteOrder,
 } from "../controllers/orderController.js";
@@ -35,5 +36,7 @@ router.put("/:id/pay", protect, updateOrderToPaid);
 
 // @route   PUT /api/orders/:id/deliver (Cập nhật đã giao hàng - Admin)
 router.put("/:id/deliver", protect, admin, updateOrderToDelivered);
-
+// Thêm route mới này vào file
+// @route   GET /api/orders/user/:userId (Lấy đơn hàng theo ID người dùng - Admin)
+router.get("/user/:userId", protect, admin, getOrdersByUserId);
 export default router;
