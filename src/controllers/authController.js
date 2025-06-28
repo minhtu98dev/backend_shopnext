@@ -264,6 +264,20 @@ const updateUserProfile = asyncHandler(async (req, res) => {
     throw new Error("Không tìm thấy người dùng");
   }
 });
+// @desc    Get user by ID
+// @route   GET /api/auth/:id
+// @access  Private/Admin
+const getUserById = asyncHandler(async (req, res) => {
+  // req.params.id sẽ lấy ID từ URL
+  const user = await User.findById(req.params.id).select("-password");
+
+  if (user) {
+    res.json(user);
+  } else {
+    res.status(404);
+    throw new Error("Không tìm thấy người dùng");
+  }
+});
 ///test
 export {
   registerUser,
@@ -274,4 +288,5 @@ export {
   updateUserProfile,
   forgotPassword,
   resetPassword,
+  getUserById,
 };

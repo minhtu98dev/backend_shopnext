@@ -10,6 +10,7 @@ import {
   updateUserProfile,
   forgotPassword,
   resetPassword,
+  getUserById,
 } from "../controllers/authController.js";
 
 // Sửa lại dòng này: thêm 'admin' vào import
@@ -42,5 +43,6 @@ router
   .route("/profile")
   .get(protect, getUserProfile)
   .put(protect, updateUserProfile);
-
+// @route   GET /api/auth/:id
+router.get("/:id", protect, admin, getUserById);
 export default router;
